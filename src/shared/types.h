@@ -1,5 +1,10 @@
 #include <stdint.h>
 
+#define DESC 0
+#define REQ 1 
+#define DESC_ACK 2 
+#define REQ_ACK 3 
+
 struct requisicao {
   uint16_t value; // Valor da requsição
 };
@@ -13,17 +18,15 @@ struct requisicao_ack {
 typedef struct __packet {
   uint16_t type; // Tipo do pacote (DESC | REQ | DESC_ACK | REQ_ACK )
   uint16_t seqn; //Número de sequência de uma requisição
-  union {
-    struct requisicao req;
-    struct requisicao_ack ack;
-  };
+  struct requisicao req;
+  struct requisicao_ack ack;
 } packet;
 
 typedef struct _clients {
   const char *address;
   int last_req;
   int last_sum;
-} clients_table;
+} clients;
 
 typedef struct _aggregate_sum {
   int num_reqs;
