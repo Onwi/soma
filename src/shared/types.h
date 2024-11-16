@@ -1,4 +1,7 @@
 #include <stdint.h>
+#include <iostream>
+#include <list>
+#include <unistd.h>
 
 #define DESC 0
 #define REQ 1 
@@ -32,3 +35,14 @@ typedef struct _aggregate_sum {
   int num_reqs;
   int total_sum;
 } aggregate_sum;
+
+typedef struct _thd_args {
+  std::list<clients> *clients_list;
+  char *client_sin_address;
+  packet *pack_from_client;
+  long int *total_sum;
+  int *sockfd;
+  struct sockaddr_in *client_addr;
+  struct sockaddr_in *server_addr;
+  socklen_t client_len;
+} thd_args;

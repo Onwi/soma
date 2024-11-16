@@ -5,9 +5,11 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <list>
+#include <pthread.h>
 
 #include "../shared/broadcast.h"
 #include "../shared/utils.h"
+#include "handle_request.h"
 
 #define BUFFER_SIZE 1024
 
@@ -54,8 +56,8 @@ int main(int argc, char *argv[]) {
     std::cout << "Server is listening for broadcast messages on port " << port << "...\n";
 
     std::list<clients> clients_list;
-    packet pack_from_client;
     uint16_t total_reqs = 0;
+    packet pack_from_client;
     while (true) {
         socklen_t client_len = sizeof(client_addr);
         memset(buffer, 0, BUFFER_SIZE);
@@ -65,41 +67,24 @@ int main(int argc, char *argv[]) {
         if (recv_len < 0) {
             std::cerr << "Failed to receive message\n";
             break;
-        }
-        total_reqs++;
-        char *client_address = inet_ntoa(client_addr.sin_addr);
-
-        clients *req_client;
-        req_client = find_client(clients_list, client_address);
-
-        if (req_client) {
-          std::cout << "req number "<< pack_from_client.seqn << " from " << req_client->address << std::endl;
-          uint16_t last_req = (*req_client).last_req;
-          // NEED FIX: check whats is wrong here
-          if (last_req + 1 == pack_from_client.seqn) {
-            (*req_client).last_sum += pack_from_client.req.value;
-          }
-          total_sum += pack_from_client.req.value;
-          std::cout << "Received broadcast message from client: " << client_address << std::endl;
-          std::cout << "total sum: " << total_sum << std::endl;
-          packet res_pack;
-          res_pack.type = REQ_ACK;
-          res_pack.seqn = pack_from_client.seqn;
-          res_pack.ack.seqn = pack_from_client.seqn;
-          res_pack.ack.total_sum = (*req_client).last_sum;
-          res_pack.ack.num_reqs = total_reqs;
-          sendto(sockfd, &res_pack, sizeof(res_pack), 0, (struct sockaddr*)&client_addr, client_len);
         } else {
-          // if client is not in the list yet, then its a braodcast discovery messaga
-          // create new client and add it to the list
-          clients new_client;
-          new_client.address = client_address;
-          new_client.last_sum = 0;
-          new_client.last_req = 0;
+          pthread_t thd;
+          total_reqs++;
 
-          clients_list.push_back(new_client);
-          char *server_address = inet_ntoa(server_addr.sin_addr); 
-          sendto(sockfd, &server_addr, sizeof(server_addr), 0, (struct sockaddr*)&client_addr, client_len);
+          thd_args args;
+          args.server_addr = &server_addr;
+          args.client_addr = &client_addr;
+          args.client_len = client_len;
+          args.client_sin_address = inet_ntoa(client_addr.sin_addr);
+          args.clients_list = &clients_list;
+          args.pack_from_client = &pack_from_client;
+          args.total_sum = &total_sum;
+          args.sockfd = &sockfd;
+
+          // trigger a thread for each client request
+          if (pthread_create(&thd, NULL, handle_request, &args) != 0) {
+            std::cerr << "failed to trigger thread!!";
+          }
         }
     }
 

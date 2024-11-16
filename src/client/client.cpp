@@ -60,6 +60,9 @@ int main(int argc, char *argv[]) {
     while (true) {
       std::cin >> req.value;
       seqn++;
+
+      if (req.value == 10) seqn = 4; // force sequence error for testing
+
       total_sum += req.value;
 
       req_pack.type = REQ;
@@ -80,11 +83,15 @@ int main(int argc, char *argv[]) {
       int recv_len = recvfrom(sockfd, &res_pack, sizeof(res_pack), 0, (struct sockaddr*)&server_addr, &addr_len);
       if (recv_len > 0) {
         uint16_t seqn_being_acked = res_pack.ack.seqn;
-        if (seqn_being_acked == seqn) {
-          std::cout << "Message number " << seqn_being_acked << " being acked" << std::endl;
-        } else {
-          // should retry
-          std::cout << "fail!" << std::endl;
+        while (seqn_being_acked != seqn) {
+          // should retry if not equal
+          if (sendto(sockfd, &req_pack, sizeof(req_pack), 0, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
+            std::cerr << "Failed to send message\n";
+            close(sockfd);
+            return -1;
+          }
+          int recv_len = recvfrom(sockfd, &res_pack, sizeof(res_pack), 0, (struct sockaddr*)&server_addr, &addr_len);
+          seqn_being_acked = res_pack.ack.seqn;
         }
       }
     }
