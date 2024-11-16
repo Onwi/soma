@@ -85,6 +85,8 @@ int main(int argc, char *argv[]) {
           if (pthread_create(&thd, NULL, handle_request, &args) != 0) {
             std::cerr << "failed to trigger thread!!";
           }
+
+          pthread_join(thd, NULL);
         }
     }
 

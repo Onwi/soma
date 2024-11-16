@@ -29,6 +29,7 @@ void *handle_request(void *args) {
     uint16_t last_req = (*req_client).last_req;
     req_client->last_req++;
 
+    packet res_pack;
     if (last_req + 1 == (*pack_from_client).seqn) {
       req_client->last_sum += pack_from_client->req.value;
       std::cout << "sum from client " << req_client->last_sum << std::endl;
@@ -36,7 +37,6 @@ void *handle_request(void *args) {
       *total_sum += pack_from_client->req.value;
       // ******************************************** 
       std::cout << "total sum: " << *total_sum << std::endl;
-      packet res_pack;
       res_pack.type = REQ_ACK;
       res_pack.seqn = pack_from_client->seqn;
       res_pack.ack.seqn = pack_from_client->seqn;
@@ -51,6 +51,14 @@ void *handle_request(void *args) {
       // TO FIGURE OUT
       // if condition fails, then a request was lost
       // we need to ask client to resend it
+      std::cout << "we lost a message! message being acked: " << (*pack_from_client).seqn << "\n";
+      res_pack.seqn = pack_from_client->seqn;
+      res_pack.type = MISSED; 
+      int n = sendto(*sockfd, &res_pack, sizeof(res_pack), 0, (struct sockaddr *)client_addr, client_len);
+      if (n < 0) {
+        std::cerr << "Error sending response to client!\n";
+        exit(1);
+      }
     }
   } else {
     // if client is not in the list yet, then its a braodcast discovery message

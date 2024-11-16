@@ -7,6 +7,7 @@
 #define REQ 1 
 #define DESC_ACK 2 
 #define REQ_ACK 3 
+#define MISSED 4 
 
 struct requisicao {
   uint16_t value; // Valor da requsição
