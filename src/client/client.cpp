@@ -48,6 +48,18 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
+    // set timeouts
+    struct timeval timeout;      
+    timeout.tv_sec = 0;
+    timeout.tv_usec = 100000;
+    
+    if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0)
+        std::cerr << "setsockopt failed\n";
+
+    //if (setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) < 0)
+    //    std::cerr << "setsockopt failed\n";
+    //************
+
     auto now = std::chrono::system_clock::now();
     std::time_t current_time = std::chrono::system_clock::to_time_t(now);
     std::cout << "server_addr " << serverIP << " " << std::ctime(&current_time); 
@@ -60,40 +72,32 @@ int main(int argc, char *argv[]) {
     while (true) {
       std::cin >> req.value;
       seqn++;
-
       if (req.value == 10) seqn = 4; // force sequence error for testing
-
       total_sum += req.value;
 
       req_pack.type = REQ;
       req_pack.seqn = seqn;
       req_pack.req = req;
 
-      // send sum request 
-      if (sendto(sockfd, &req_pack, sizeof(req_pack), 0, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
-        std::cerr << "Failed to send message\n";
-        close(sockfd);
-        return -1;
-      }
-
-      std::cout << "Broadcast message number "  << seqn << " sent" << std::endl;
-
-      // Wait for ack response from server
       socklen_t addr_len = sizeof(server_addr);
-      int recv_len = recvfrom(sockfd, &res_pack, sizeof(res_pack), 0, (struct sockaddr*)&server_addr, &addr_len);
-      if (recv_len > 0) {
-        uint16_t seqn_being_acked = res_pack.ack.seqn;
-        while (seqn_being_acked != seqn) {
-          // should retry if not equal
-          if (sendto(sockfd, &req_pack, sizeof(req_pack), 0, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
-            std::cerr << "Failed to send message\n";
-            close(sockfd);
-            return -1;
-          }
-          int recv_len = recvfrom(sockfd, &res_pack, sizeof(res_pack), 0, (struct sockaddr*)&server_addr, &addr_len);
-          seqn_being_acked = res_pack.ack.seqn;
+      int response_size;
+      std::cout << "tamo no main while\n";
+      do {
+        std::cout << "tamo no do while\n";
+        // send sum request 
+        if (sendto(sockfd, &req_pack, sizeof(req_pack), 0, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
+          std::cerr << "Failed to send message\n";
+          close(sockfd);
+          return -1;
         }
-      }
+        std::cout << "message number "  << seqn << " sent" << std::endl;
+
+        // get response from server
+        response_size = recvfrom(sockfd, &res_pack, sizeof(res_pack), 0, (struct sockaddr*)&server_addr, &addr_len);
+        if (response_size > 0 && res_pack.type == REQ_ACK) {
+          std::cout << "request acked successfuly!\n!" << std::endl;
+        }
+      } while (response_size < 0 || res_pack.type != REQ_ACK);
     }
 
     close(sockfd);
