@@ -46,4 +46,6 @@ typedef struct _thd_args {
   struct sockaddr_in *client_addr;
   struct sockaddr_in *server_addr;
   socklen_t client_len;
+  pthread_mutex_t *lock;
+  int num_reqs;
 } thd_args;

@@ -72,7 +72,7 @@ int main(int argc, char *argv[]) {
     while (true) {
       std::cin >> req.value;
       seqn++;
-      if (req.value == 10) seqn = 4; // force sequence error for testing
+      //if (req.value == 9) seqn = 10; // force sequence error for testing
       total_sum += req.value;
 
       req_pack.type = REQ;
@@ -81,23 +81,22 @@ int main(int argc, char *argv[]) {
 
       socklen_t addr_len = sizeof(server_addr);
       int response_size;
-      std::cout << "tamo no main while\n";
       do {
-        std::cout << "tamo no do while\n";
         // send sum request 
         if (sendto(sockfd, &req_pack, sizeof(req_pack), 0, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
           std::cerr << "Failed to send message\n";
           close(sockfd);
           return -1;
         }
-        std::cout << "message number "  << seqn << " sent" << std::endl;
-
         // get response from server
         response_size = recvfrom(sockfd, &res_pack, sizeof(res_pack), 0, (struct sockaddr*)&server_addr, &addr_len);
         if (response_size > 0 && res_pack.type == REQ_ACK) {
-          std::cout << "request acked successfuly!\n!" << std::endl;
+            now = std::chrono::system_clock::now();
+            current_time = std::chrono::system_clock::to_time_t(now);
+            std::cout << std::ctime(&current_time) << "server " << inet_ntoa(server_addr.sin_addr) << " id_req " << seqn
+                  << " value " << req.value << " num_reqs " << res_pack.ack.seqn << " total sum " << res_pack.ack.total_sum << std::endl;
         }
-      } while (response_size < 0 || res_pack.type != REQ_ACK);
+      } while (response_size < 0);
     }
 
     close(sockfd);
