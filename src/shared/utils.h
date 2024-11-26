@@ -3,3 +3,5 @@
 #include <ctime>
 
 clients *find_client(std::list<clients> *clients_list, char *client_ip);
+void printListOfClients(std::list<clients> clients);
+void printClient(clients client);

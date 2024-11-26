@@ -11,7 +11,8 @@
 #include "../shared/utils.h"
 #include <chrono>
 
-void *handle_request(void *args) {
+void *handle_request(void *args)
+{
   thd_args *thd_arg = (thd_args *)args;
 
   char *client_sin_address = thd_arg->client_sin_address;
@@ -27,22 +28,17 @@ void *handle_request(void *args) {
 
   clients *req_client = find_client(clients_list, client_sin_address);
 
-  // set timeouts
-  struct timeval timeout;      
-  timeout.tv_sec = 0;
-  timeout.tv_usec = 100000;
-  if (setsockopt(*sockfd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) < 0)
-      std::cerr << "setsockopt failed\n";
-  //********* 
-
-  if (req_client) {
+  if (req_client != NULL && (*pack_from_client).type != DESC)
+  {
+    std::cout << "req_client address: " << (*req_client).address << " last_req: " << (*req_client).last_req << std::endl;
     uint16_t last_req = (*req_client).last_req;
     req_client->last_req++;
 
     packet res_pack;
-    if (last_req + 1 == (*pack_from_client).seqn) {
+    if (last_req + 1 == (*pack_from_client).seqn)
+    {
       req_client->last_sum += pack_from_client->req.value;
-      
+
       // lock this to prevent simultaneous access
       pthread_mutex_lock(lock);
       *total_sum += pack_from_client->req.value;
@@ -50,12 +46,11 @@ void *handle_request(void *args) {
       std::time_t current_time = std::chrono::system_clock::to_time_t(now);
 
       std::cout << std::ctime(&current_time) << "client " << inet_ntoa(client_addr->sin_addr)
-            << " id_req " << pack_from_client->seqn << " value " << pack_from_client->req.value
-            << " num_reqs " << num_reqs << " total_sum " << *total_sum << std::endl;
- 
+                << " id_req " << pack_from_client->seqn << " value " << pack_from_client->req.value
+                << " num_reqs " << num_reqs << " total_sum " << *total_sum << std::endl;
 
       pthread_mutex_unlock(lock);
-      // ******************************************** 
+      // ********************************************
 
       res_pack.type = REQ_ACK;
       res_pack.seqn = pack_from_client->seqn;
@@ -63,14 +58,19 @@ void *handle_request(void *args) {
       res_pack.ack.total_sum = (*req_client).last_sum;
       res_pack.ack.num_reqs = 1;
       int n = sendto(*sockfd, &res_pack, sizeof(res_pack), 0, (struct sockaddr *)client_addr, client_len);
-      if (n < 0) {
+      if (n < 0)
+      {
         std::cerr << "Error sending response to client!\n";
         exit(1);
       }
-    } else {
+    }
+    else
+    {
       std::cout << "we lost a message! " << (*pack_from_client).seqn << "\n";
     }
-  } else {
+  }
+  else
+  {
     // if client is not in the list yet, then its a braodcast discovery message
     // create new client and add it to the list
     clients new_client;
@@ -82,7 +82,8 @@ void *handle_request(void *args) {
     // I know this wont work, I'm just lazy to fix since I wont use anyways
     char *server_address = inet_ntoa(server_addr->sin_addr);
     int n = sendto(*sockfd, server_address, sizeof(*server_address), 0, (struct sockaddr *)client_addr, client_len);
-    if (n < 0) {
+    if (n < 0)
+    {
       std::cerr << "Error sending response to client!!\n";
       exit(1);
     }
