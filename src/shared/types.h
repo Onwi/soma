@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <iostream>
 #include <list>
+#include <map>
 #include <unistd.h>
 
 #define DESC 0
@@ -27,7 +28,7 @@ typedef struct __packet {
 } packet;
 
 typedef struct _clients {
-  const char *address;
+  std::string address;
   int last_req;
   int last_sum;
 } clients;
@@ -39,6 +40,8 @@ typedef struct _aggregate_sum {
 
 typedef struct _thd_args {
   std::list<clients> *clients_list;
+  std::map<int, clients> *clients_map;
+  int *n_clients;
   char *client_sin_address;
   packet *pack_from_client;
   long int *total_sum;

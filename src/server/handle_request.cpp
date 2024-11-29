@@ -3,6 +3,7 @@
 #include <iostream>
 #include <netinet/in.h>
 #include <pthread.h>
+#include <string>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <unistd.h>
@@ -18,6 +19,7 @@ void *handle_request(void *args)
   char *client_sin_address = thd_arg->client_sin_address;
   int *sockfd = thd_arg->sockfd;
   std::list<clients> *clients_list = thd_arg->clients_list;
+  std::map<int, clients> *clients_map = thd_arg->clients_map;
   packet *pack_from_client = thd_arg->pack_from_client;
   long int *total_sum = thd_arg->total_sum;
   struct sockaddr_in *client_addr = thd_arg->client_addr;
@@ -25,8 +27,10 @@ void *handle_request(void *args)
   socklen_t client_len = thd_arg->client_len;
   pthread_mutex_t *lock = thd_arg->lock;
   int num_reqs = thd_arg->num_reqs;
+  int *n_clients = thd_arg->n_clients;
 
-  clients *req_client = find_client(clients_list, client_sin_address);
+  //clients *req_client = find_client(clients_list, client_sin_address);
+  clients *req_client = find_client_in_map(clients_map, client_sin_address);
 
   if (req_client != NULL && (*pack_from_client).type != DESC)
   {
@@ -73,12 +77,19 @@ void *handle_request(void *args)
   {
     // if client is not in the list yet, then its a braodcast discovery message
     // create new client and add it to the list
+    pthread_mutex_lock(lock);
     clients new_client;
     new_client.address = client_sin_address;
     new_client.last_sum = 0;
     new_client.last_req = 0;
 
+    (*n_clients)++;
+    std::cout << "n_client: " << (*n_clients) << std::endl;
+    clients_map->insert(std::pair<int, clients>((*n_clients), new_client));
     clients_list->push_back(new_client);
+
+    pthread_mutex_unlock(lock);
+
     // I know this wont work, I'm just lazy to fix since I wont use anyways
     char *server_address = inet_ntoa(server_addr->sin_addr);
     int n = sendto(*sockfd, server_address, sizeof(*server_address), 0, (struct sockaddr *)client_addr, client_len);

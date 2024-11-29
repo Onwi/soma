@@ -5,6 +5,7 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <list>
+#include <map>
 #include <pthread.h>
 #include <chrono>
 
@@ -15,6 +16,7 @@
 #define BUFFER_SIZE 1024
 
 long int total_sum = 0;
+int n_clients = 0;
 pthread_mutex_t lock;
 
 int main(int argc, char *argv[])
@@ -79,6 +81,7 @@ int main(int argc, char *argv[])
   std::time_t current_time = std::chrono::system_clock::to_time_t(now);
 
   std::list<clients> clients_list;
+  std::map<int, clients> clients_map;
   uint16_t total_reqs = 0;
   packet pack_from_client;
   while (true)
@@ -87,6 +90,7 @@ int main(int argc, char *argv[])
     memset(buffer, 0, BUFFER_SIZE);
 
     printListOfClients(clients_list);
+    printMap(clients_map);
 
     // receive message from client
     int recv_len = recvfrom(sockfd, &pack_from_client, sizeof(pack_from_client), 0, (struct sockaddr *)&client_addr, &client_len);
@@ -111,7 +115,9 @@ int main(int argc, char *argv[])
       args.client_len = client_len;
       args.client_sin_address = inet_ntoa(client_addr.sin_addr);
       args.clients_list = &clients_list;
+      args.clients_map= &clients_map;
       args.pack_from_client = &pack_from_client;
+      args.n_clients = &n_clients;
       args.total_sum = &total_sum;
       args.sockfd = &sockfd;
       args.lock = &lock;
