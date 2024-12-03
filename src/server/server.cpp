@@ -15,7 +15,7 @@
 
 #define BUFFER_SIZE 1024
 
-long int total_sum = 0;
+uint64_t total_sum = 0;
 int n_clients = 0;
 pthread_mutex_t lock;
 
@@ -24,7 +24,7 @@ int main(int argc, char *argv[])
   int sockfd;
   struct sockaddr_in server_addr, client_addr;
   char buffer[BUFFER_SIZE];
-  int num_reqs = 0;
+  uint64_t num_reqs = 0;
 
   if (argc < 2)
   {
@@ -82,7 +82,7 @@ int main(int argc, char *argv[])
 
   std::list<clients> clients_list;
   std::map<int, clients> clients_map;
-  uint16_t total_reqs = 0;
+  uint64_t total_reqs = 0;
   packet pack_from_client;
   while (true)
   {

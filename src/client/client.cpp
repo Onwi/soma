@@ -70,13 +70,11 @@ int main(int argc, char *argv[])
   std::cout << "server_addr " << serverIP << " " << std::ctime(&current_time);
 
   requisicao req;
-  uint16_t seqn = 0;
-  uint16_t total_sum = 0;
+  uint64_t seqn = 0;
+  uint64_t total_sum = 0;
   packet req_pack;
   packet res_pack;
-  while (true)
-  {
-    std::cin >> req.value;
+  while (std::cin >> req.value) {
     seqn++;
     // if (req.value == 9) seqn = 10; // force sequence error for testing
     total_sum += req.value;

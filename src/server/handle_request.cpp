@@ -21,12 +21,12 @@ void *handle_request(void *args)
   std::list<clients> *clients_list = thd_arg->clients_list;
   std::map<int, clients> *clients_map = thd_arg->clients_map;
   packet *pack_from_client = thd_arg->pack_from_client;
-  long int *total_sum = thd_arg->total_sum;
+  uint64_t *total_sum = thd_arg->total_sum;
   struct sockaddr_in *client_addr = thd_arg->client_addr;
   struct sockaddr_in *server_addr = thd_arg->server_addr;
   socklen_t client_len = thd_arg->client_len;
   pthread_mutex_t *lock = thd_arg->lock;
-  int num_reqs = thd_arg->num_reqs;
+  uint64_t num_reqs = thd_arg->num_reqs;
   int *n_clients = thd_arg->n_clients;
 
   //clients *req_client = find_client(clients_list, client_sin_address);
@@ -35,17 +35,17 @@ void *handle_request(void *args)
   if (req_client != NULL && (*pack_from_client).type != DESC)
   {
     std::cout << "req_client address: " << (*req_client).address << " last_req: " << (*req_client).last_req << std::endl;
-    uint16_t last_req = (*req_client).last_req;
+    uint64_t last_req = (*req_client).last_req;
     req_client->last_req++;
 
     packet res_pack;
     if (last_req + 1 == (*pack_from_client).seqn)
     {
-      req_client->last_sum += pack_from_client->req.value;
 
       // lock this to prevent simultaneous access
       pthread_mutex_lock(lock);
       *total_sum += pack_from_client->req.value;
+      req_client->last_sum += *total_sum;
       auto now = std::chrono::system_clock::now();
       std::time_t current_time = std::chrono::system_clock::to_time_t(now);
 
@@ -59,7 +59,7 @@ void *handle_request(void *args)
       res_pack.type = REQ_ACK;
       res_pack.seqn = pack_from_client->seqn;
       res_pack.ack.seqn = pack_from_client->seqn;
-      res_pack.ack.total_sum = (*req_client).last_sum;
+      res_pack.ack.total_sum = *total_sum;
       res_pack.ack.num_reqs = 1;
       int n = sendto(*sockfd, &res_pack, sizeof(res_pack), 0, (struct sockaddr *)client_addr, client_len);
       if (n < 0)
