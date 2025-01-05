@@ -14,10 +14,14 @@
 #include "handle_request.h"
 
 #define BUFFER_SIZE 1024
+#define BROADCAST_IP "255.255.255.255"
+#define IP_SIZE 17
 
 uint64_t total_sum = 0;
 int n_clients = 0;
 pthread_mutex_t lock;
+
+void sendUpdate(packet pack, int sockfd, int port);
 
 int main(int argc, char *argv[])
 {
@@ -89,17 +93,20 @@ int main(int argc, char *argv[])
     socklen_t client_len = sizeof(client_addr);
     memset(buffer, 0, BUFFER_SIZE);
 
-    printListOfClients(clients_list);
-    printMap(clients_map);
+    //printListOfClients(clients_list);
+    //printMap(clients_map);
 
     // receive message from client
     int recv_len = recvfrom(sockfd, &pack_from_client, sizeof(pack_from_client), 0, (struct sockaddr *)&client_addr, &client_len);
-    if (recv_len < 0)
-    {
+    if (recv_len < 0) {
       std::cerr << "Failed to receive message\n";
       break;
-    }
-    else
+    } else if (pack_from_client.type == UPDATE) {
+      total_reqs = pack_from_client.ack.total_sum;
+      num_reqs = pack_from_client.ack.num_reqs;
+      std::cout << "replica total_sum: " << total_sum << std::endl;
+      std::cout << "replica num_reqs: " << num_reqs << std::endl;
+    } else
     {
 
       pthread_t thd;
@@ -128,15 +135,58 @@ int main(int argc, char *argv[])
       {
         std::cerr << "failed to trigger thread!!";
       }
-      std::cout << std::endl
-                << std::endl
-                << std::endl
-                << std::endl
-                << std::endl;
+     
       pthread_join(thd, NULL);
+      packet updatePack;
+      updatePack.ack.num_reqs = num_reqs;
+      updatePack.ack.total_sum = total_sum;
+      updatePack.type = UPDATE;
+      sendUpdate(updatePack, sockfd, port);
     }
   }
 
   close(sockfd);
   return 0;
+}
+
+void sendUpdate(packet pack, int sock, int port) {
+  int sockfd;
+  if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+    std::cerr << "Socket creation failed\n";
+  }
+
+  int broadcast = 1;
+  if (setsockopt(sockfd, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast)) < -1)
+  {
+    std::cerr << "Failed to set socket options\n";
+    close(sockfd);
+  }
+
+
+  struct sockaddr_in server_addr;
+  char serverIP[IP_SIZE];
+  
+  // Set up server address structure
+  memset(&server_addr, 0, sizeof(server_addr));
+  server_addr.sin_family = AF_INET;
+  server_addr.sin_addr.s_addr = INADDR_ANY;
+  server_addr.sin_port = htons(port);
+
+  // bind socket to address
+  if (bind(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < -1) {
+    std::cerr << "Bind failed\n";
+    close(sockfd);
+  }
+
+  // Set the broadcast IP address
+  if (inet_pton(AF_INET, BROADCAST_IP, &server_addr.sin_addr) <= 0)
+  {
+    std::cerr << "Invalid broadcast IP address\n";
+    close(sockfd);
+  }
+  
+  if (sendto(sockfd, &pack, sizeof(pack), 0, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
+    std::cerr << "Failed to send message\n";
+    close(sockfd);
+  }
 }
